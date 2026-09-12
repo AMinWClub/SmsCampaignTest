@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime, time, timedelta, date
 import pandas as pd
+import math
 
 from mongodb_config.config import get_db
 from validators.phone_normalizer import normalize_phone
@@ -133,6 +134,19 @@ df = pd.DataFrame(orders_data)
 invalid_phone_count = 0
 customer_count = 0
 
+col_6_1, col_6_2, col_6_3 = st.columns(3)
+with col_6_1:
+    st.metric(
+        "Order Count",
+        value=len(list(orders_data))
+    )
+with col_6_2:
+    st.metric(
+        "Unique Customers",
+        customer_count
+    )
+
+    
 if not df.empty:
     df["phone_normalized"] = df["phone"].apply(normalize_phone)
 
@@ -143,9 +157,31 @@ if not df.empty:
     )
 
     invalid_phone_count = df["phone_normalized"].isna().sum()
-
+    with col_6_3:
+        st.metric(
+            "Invalid Phone Numbers",
+            invalid_phone_count
+        )
     customers_df = build_customers(df)
 
+    PAGE_SIZE = 50
+
+    total_customers = len(customers_df)
+    total_pages = max(1, math.ceil(total_customers / PAGE_SIZE))
+
+    page = st.number_input(
+        "Page",
+        min_value=1,
+        max_value=total_pages,
+        value=1,
+        step=1,
+    )
+
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+
+    page_df = customers_df.iloc[start_index:end_index]
+    
     customers_df = customers_df.rename(
         columns={
             "first_name": "نام",
@@ -175,26 +211,23 @@ customer_count = len(customers_df)
 
 
 # ----- DATA PREVIEW
+    
+col1, col2, col3 = st.columns([1, 1, 2])
 
-col_6_1, col_6_2, col_6_3 = st.columns(3)
-with col_6_1:
-    st.metric(
-        "Order Count",
-        value=len(list(orders_data))
-    )
-with col_6_2:
-    st.metric(
-        "Unique Customers",
-        customer_count
-    )
-with col_6_3:
-    st.metric(
-        "Invalid Phone Numbers",
-        invalid_phone_count
+with col1:
+    st.write(f"Page {page} / {total_pages}")
+
+with col2:
+    st.write(f"Customers: {total_customers}")
+
+with col3:
+    st.write(
+        f"Showing {start_index + 1} - "
+        f"{min(end_index, total_customers)}"
     )
     
 st.dataframe(
-    customers_df,
+    page_df,
     width="stretch"
 )
 
