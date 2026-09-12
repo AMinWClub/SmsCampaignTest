@@ -47,6 +47,21 @@ if selected_end_date_paid:
         time.min
     )
 
+date_product_operator = st.sidebar.selectbox(
+    "Date Range ↔ Products",
+    ["AND", "OR"],
+)
+
+date_discount_operator = st.sidebar.selectbox(
+    "Date Range ↔ Discount Code",
+    ["AND", "OR"],
+)
+
+date_price_operator = st.sidebar.selectbox(
+    "Date Range ↔ Price",
+    ["AND", "OR"],
+)
+
 # # ----- PRODUCT IDs
 product_mapping = {}
 
@@ -121,6 +136,9 @@ query = build_orders_query(
         if selected_end_total
         else None
     ),
+    date_product_operator=date_product_operator,
+    date_discount_operator=date_discount_operator,
+    date_price_operator=date_price_operator,
 )
 
 # ----- ----- MAIN CONTENT
@@ -140,11 +158,7 @@ with col_6_1:
         "Order Count",
         value=len(list(orders_data))
     )
-with col_6_2:
-    st.metric(
-        "Unique Customers",
-        customer_count
-    )
+
 
     
 if not df.empty:
@@ -209,28 +223,68 @@ else:
     
 customer_count = len(customers_df)
 
+with col_6_2:
+    st.metric(
+        "Unique Customers",
+        customer_count
+    )
 
 # ----- DATA PREVIEW
     
-col1, col2, col3 = st.columns([1, 1, 2])
+# ----- DATA PREVIEW
 
-with col1:
-    st.write(f"Page {page} / {total_pages}")
+if customers_df.empty:
 
-with col2:
-    st.write(f"Customers: {total_customers}")
+    st.info("No customers found for the selected filters.")
 
-with col3:
-    st.write(
-        f"Showing {start_index + 1} - "
-        f"{min(end_index, total_customers)}"
+else:
+
+    PAGE_SIZE = 50
+
+    total_customers = len(customers_df)
+
+    total_pages = math.ceil(
+        total_customers / PAGE_SIZE
     )
-    
-st.dataframe(
-    page_df,
-    width="stretch"
-)
 
+    page = st.number_input(
+        "Page",
+        min_value=1,
+        max_value=total_pages,
+        value=1,
+        step=1,
+        key="customer_page",
+    )
+
+    start_index = (page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+
+    page_df = customers_df.iloc[
+        start_index:end_index
+    ]
+
+    col1, col2, col3 = st.columns([1, 1, 2])
+
+    with col1:
+        st.write(
+            f"Page {page} / {total_pages}"
+        )
+
+    with col2:
+        st.write(
+            f"Customers: {total_customers}"
+        )
+
+    with col3:
+        st.write(
+            f"Showing {start_index + 1} - "
+            f"{min(end_index, total_customers)}"
+        )
+
+    st.dataframe(
+        page_df,
+        width="stretch"
+    )
 
 # ----- CAMPAIGN
 
@@ -263,7 +317,8 @@ with st.container(border=True):
             ]
             if error
         ]
-
+        if len(customers_df) < 1:
+            errors.append("atleast one customer should included!")
         if errors:
             for error in errors:
                 st.error(error)
